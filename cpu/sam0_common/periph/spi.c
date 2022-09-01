@@ -362,38 +362,21 @@ void spi_init(spi_t bus)
     poweroff(bus);
 }
 
-int spi_init_with_gpio_mode(spi_t bus, const spi_gpio_mode_t* mode)
+void spi_init_pins(spi_t bus)
 {
-    assert(bus < SPI_NUMOF);
-
-    if (gpio_is_valid(spi_config[bus].mosi_pin)) {
-        gpio_init(spi_config[bus].miso_pin, mode->mosi);
+    /* MISO must always have PD/PU, see #5968. This is a ~65uA difference */
+    if (gpio_is_valid(spi_config[bus].miso_pin)) {
+        gpio_init(spi_config[bus].miso_pin, GPIO_IN_PD);
         gpio_init_mux(spi_config[bus].miso_pin, spi_config[bus].miso_mux);
     }
 
-    if (gpio_is_valid(spi_config[bus].miso_pin)) {
-        gpio_init(spi_config[bus].mosi_pin, mode->miso);
-        gpio_init_mux(spi_config[bus].mosi_pin, spi_config[bus].mosi_mux);
-    }
+    gpio_init(spi_config[bus].mosi_pin, GPIO_OUT);
+    gpio_init_mux(spi_config[bus].mosi_pin, spi_config[bus].mosi_mux);
 
-    if (gpio_is_valid(spi_config[bus].clk_pin)) {
-        /* clk_pin will be muxed during acquire / release */
-        gpio_init(spi_config[bus].clk_pin, mode->sclk);
-    }
+    gpio_init(spi_config[bus].clk_pin, GPIO_OUT);
+    /* clk_pin will be muxed during acquire / release */
+
     mutex_unlock(&locks[bus]);
-
-    return 0;
-}
-
-void spi_init_pins(spi_t bus)
-{
-    const spi_gpio_mode_t gpio_modes = {
-        .mosi = GPIO_OUT,
-        /* MISO must always have PD/PU, see #5968. This is a ~65uA difference */
-        .miso = GPIO_IN_PD,
-        .sclk = GPIO_OUT,
-    };
-    spi_init_with_gpio_mode(bus, &gpio_modes);
 }
 
 void spi_deinit_pins(spi_t bus)
