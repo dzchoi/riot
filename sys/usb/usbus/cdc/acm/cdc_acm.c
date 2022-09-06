@@ -150,7 +150,8 @@ size_t usbus_cdc_acm_submit(usbus_cdcacm_device_t *cdcacm, const uint8_t *buf, s
 {
     size_t n;
     unsigned old;
-    if (cdcacm->state != USBUS_CDC_ACM_LINE_STATE_DISCONNECTED) {
+    if ( (cdcacm->state != USBUS_CDC_ACM_LINE_STATE_DISCONNECTED)
+        && (cdcacm->usbus->state == USBUS_STATE_CONFIGURED) ) {
         old = irq_disable();
         n = tsrb_add(&cdcacm->tsrb, buf, len);
         irq_restore(old);
