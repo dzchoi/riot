@@ -462,6 +462,10 @@ typedef struct {
     gpio_mux_t mux;         /**< alternate function (mux) */
     uint8_t gclk_src;       /**< GCLK source which supplys SERCOM */
     uint8_t flags;          /**< allow SERCOM to run in standby mode */
+#ifdef MODULE_PERIPH_DMA
+    uint8_t tx_trigger;     /**< DMA trigger */
+    uint8_t rx_trigger;     /**< DMA trigger */
+#endif
 } i2c_conf_t;
 
 /**

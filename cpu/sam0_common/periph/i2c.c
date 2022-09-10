@@ -94,6 +94,37 @@ static void _reset(SercomI2cm *dev)
 #endif
 }
 
+#ifdef MODULE_PERIPH_DMA
+struct dma_state {
+    dma_t tx_dma;
+    dma_t rx_dma;
+};
+
+static struct dma_state _dma_state[I2C_NUMOF];
+
+static size_t _total_len[DMAC_CH_NUM];
+
+static void _init_dma(i2c_t dev, const volatile void* reg_rx, volatile void* reg_tx)
+{
+    if ( i2c_config[dev].rx_trigger != DMA_TRIGGER_DISABLED ) {
+        const dma_t dma = dma_acquire_channel();
+        _dma_state[dev].rx_dma = dma;
+        dma_setup(dma, i2c_config[dev].rx_trigger, 1, true);
+        dma_prepare(dma, DMAC_BTCTRL_BEATSIZE_BYTE_Val,
+                    (void*)reg_rx, NULL, 1, 0);
+    }
+
+    if ( i2c_config[dev].tx_trigger != DMA_TRIGGER_DISABLED ) {
+        const dma_t dma = dma_acquire_channel();
+        _dma_state[dev].tx_dma = dma;
+        // Todo: Support DMAC->Channel[0].CHCTRLA.bit.RUNSTDBY = 1?
+        dma_setup(dma, i2c_config[dev].tx_trigger, 0, true);
+        dma_prepare(dma, DMAC_BTCTRL_BEATSIZE_BYTE_Val,
+                    NULL, (void*)reg_tx, 0, 0);
+    }
+}
+#endif
+
 void i2c_init(i2c_t dev)
 {
     uint32_t timeout_counter = 0;
@@ -192,6 +223,11 @@ void i2c_init(i2c_t dev)
             bus(dev)->STATUS.reg = BUSSTATE_IDLE;
         }
     }
+
+#ifdef MODULE_PERIPH_DMA
+    /* set up DMA channels */
+    _init_dma(dev, &bus(dev)->DATA.reg, &bus(dev)->DATA.reg);
+#endif
 }
 
 void i2c_acquire(i2c_t dev)
@@ -231,6 +267,39 @@ void i2c_deinit_pins(i2c_t dev)
 }
 #endif
 
+#ifdef MODULE_PERIPH_DMA
+static int _dma_read(i2c_t dev, uint16_t addr, uint8_t* in, size_t len, uint8_t flags)
+{
+    assert(in != NULL);
+    const dma_t dma = _dma_state[dev].rx_dma;
+
+    if ( (flags & I2C_NOSTART) == 0 ) {
+        dma_prepare_dst(dma, in + len, len, true);
+        _total_len[dma] = len;
+    } else {
+        static DmacDescriptor DMA_DESCRIPTOR_ATTRS rx_desc[I2C_NUMOF];
+        dma_append_dst(dma, &rx_desc[dev], in + len, len, true);
+        _total_len[dma] += len;
+    }
+
+    if ( (flags & I2C_NOSTOP) == 0 ) {
+        dma_start(dma);
+
+        bus(dev)->ADDR.reg = SERCOM_I2CM_ADDR_LEN(_total_len[dma])
+                           | SERCOM_I2CM_ADDR_LENEN
+                           | SERCOM_I2CM_ADDR_ADDR(addr);
+
+        dma_wait(dma);
+
+        // Ensure all bytes has been read
+        while ( (bus(dev)->STATUS.reg & SERCOM_I2CM_STATUS_BUSSTATE_Msk)
+                != BUSSTATE_IDLE ) {}
+    }
+
+    return 0;
+}
+#endif
+
 int i2c_read_bytes(i2c_t dev, uint16_t addr,
                    void *data, size_t len, uint8_t flags)
 {
@@ -245,6 +314,15 @@ int i2c_read_bytes(i2c_t dev, uint16_t addr,
     if (data == NULL || len == 0) {
         return -EINVAL;
     }
+
+#ifdef MODULE_PERIPH_DMA
+    if ( i2c_config[dev].rx_trigger != DMA_TRIGGER_DISABLED ) {
+        const uint8_t NOSTART_NOSTOP = I2C_NOSTART | I2C_NOSTOP;
+        if ( (flags & NOSTART_NOSTOP) == NOSTART_NOSTOP )
+            return -EOPNOTSUPP;
+        return _dma_read(dev, (addr<<1) | I2C_READ, data, len, flags);
+    }
+#endif
 
     if (!(flags & I2C_NOSTART)) {
         /* start transmission and send slave address */
@@ -273,6 +351,56 @@ int i2c_read_bytes(i2c_t dev, uint16_t addr,
     return 0;
 }
 
+#ifdef MODULE_PERIPH_DMA
+static int _dma_write(
+    i2c_t dev, uint16_t addr, const uint8_t* out, size_t len, uint8_t flags)
+{
+    assert(out != NULL);
+    const dma_t dma = _dma_state[dev].tx_dma;
+
+    if ( (flags & I2C_NOSTART) == 0 ) {
+        dma_prepare_src(dma, out + len, len, true);
+        _total_len[dma] = len;
+    } else {
+        static DmacDescriptor DMA_DESCRIPTOR_ATTRS tx_desc[I2C_NUMOF];
+        dma_append_src(dma, &tx_desc[dev], out + len, len, true);
+        _total_len[dma] += len;
+    }
+
+    if ( (flags & I2C_NOSTOP) == 0 ) {
+        // Enable DMA. It will start when i2c_config[].tx_trigger triggers.
+        dma_start(dma);
+
+        // "When using the I2C master with DMA, the ADDR register must be written with
+        // the desired address (ADDR.ADDR), transaction length (ADDR.LEN), and
+        // transaction length enable (ADDR.LENEN). When ADDR.LENEN is written to 1
+        // along with ADDR.ADDR, ADDR.LEN determines the number of data bytes in the
+        // transaction from 0 to 255. DMA is then used to transfer ADDR.LEN bytes
+        // followed by an automatically generated NACK (for master reads) and a STOP."
+        bus(dev)->ADDR.reg = SERCOM_I2CM_ADDR_LEN(_total_len[dma])
+                           | SERCOM_I2CM_ADDR_LENEN
+                           | SERCOM_I2CM_ADDR_ADDR(addr);
+
+        // A timed dma wait based on xtimer_mutex_lock_timeout() rather than simply on
+        // mutex_lock() would be more desirable for safety reasons. For example, sending
+        // to uninitialized or initializing peripheral would cause a wait in vain.
+        // Note also that isr_dmac() which dma_wait() actually depends on waits only
+        // for DMAC_INTPEND_TCMPL, and not DMAC_INTPEND_TERR or DMAC_INTPEND_SUSP,
+        // which can also have dma_wait() wait forever.
+        dma_wait(dma);
+
+        // Even after DMA transfer is complete now (i.e.
+        // DMAC->Channel[dma].CHSTATUS.bit.BUSY == 0) I2C bus can be still busy
+        // processing the STOP, so we need to wait additionally for BUSSTATE_IDLE to
+        // enable other following DMA/non-DMA reads/writes.
+        while ( (bus(dev)->STATUS.reg & SERCOM_I2CM_STATUS_BUSSTATE_Msk)
+                != BUSSTATE_IDLE ) {}
+    }
+
+    return 0;
+}
+#endif  // MODULE_PERIPH_DMA
+
 int i2c_write_bytes(i2c_t dev, uint16_t addr, const void *data, size_t len,
                     uint8_t flags)
 {
@@ -287,6 +415,16 @@ int i2c_write_bytes(i2c_t dev, uint16_t addr, const void *data, size_t len,
     if (data == NULL || len == 0) {
         return -EINVAL;
     }
+
+#ifdef MODULE_PERIPH_DMA
+    if ( i2c_config[dev].tx_trigger != DMA_TRIGGER_DISABLED ) {
+        const uint8_t NOSTART_NOSTOP = I2C_NOSTART | I2C_NOSTOP;
+        // Current dma.c does not support chains of more than two transfers.
+        if ( (flags & NOSTART_NOSTOP) == NOSTART_NOSTOP )
+            return -EOPNOTSUPP;
+        return _dma_write(dev, (addr<<1), data, len, flags);
+    }
+#endif
 
     if (!(flags & I2C_NOSTART)) {
         ret = _start(bus(dev), (addr<<1));
