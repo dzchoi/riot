@@ -382,6 +382,7 @@ static void _handle_reset(usbus_handler_t *handler)
     DEBUG("CDC ACM: Reset notification received\n");
 
     cdcacm->state = USBUS_CDC_ACM_LINE_STATE_DISCONNECTED;
+    cdcacm->occupied = 0;
 }
 
 static void _event_handler(usbus_t *usbus, usbus_handler_t *handler, usbus_event_usb_t event)
