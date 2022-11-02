@@ -296,11 +296,12 @@ static void *_usbus_thread(void *args)
 
         }
         if (flags & THREAD_FLAG_EVENT) {
-            event_t* event;
-            while ( (event = event_get(&usbus->queue)) != NULL )
+            event_t *event = event_get(&usbus->queue);
+            if (event) {
                 event->handler(event);
+                thread_flags_set(thread_get(usbus->pid), THREAD_FLAG_EVENT);
+            }
         }
-
     }
     return NULL;
 }
