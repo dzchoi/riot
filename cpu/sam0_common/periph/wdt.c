@@ -68,7 +68,7 @@ static inline void _wait_syncbusy(void)
 
 static uint32_t ms_to_per(uint32_t ms)
 {
-    const uint32_t cycles = (ms * WDT_CLOCK_HZ) / 1024;
+    const uint32_t cycles = (ms * WDT_CLOCK_HZ) / 1000u;
 
     /* Minimum WDT period is 8 clock cycles (register value 0) */
     if (cycles <= 8) {
@@ -171,7 +171,9 @@ void wdt_start(void)
 
 void wdt_kick(void)
 {
-    WDT->CLEAR.reg = WDT_CLEAR_CLEAR_KEY_Val;
+    if ( !WDT->SYNCBUSY.bit.CLEAR ) {
+        WDT->CLEAR.reg = WDT_CLEAR_CLEAR_KEY_Val;
+    }
 }
 
 #ifdef MODULE_PERIPH_WDT_CB
