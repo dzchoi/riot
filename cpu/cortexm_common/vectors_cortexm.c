@@ -30,6 +30,7 @@
 #include "periph_cpu.h"
 #include "kernel_init.h"
 #include "board.h"
+#include "log.h"
 #include "mpu.h"
 #include "panic.h"
 #include "sched.h"
@@ -343,11 +344,11 @@ __attribute__((used)) void hard_fault_handler(uint32_t* sp, uint32_t corrupted, 
     /* Check if the ISR stack overflowed previously. Not possible to detect
      * after output may also have overflowed it. */
     if (*(&_sstack) != STACK_CANARY_WORD) {
-        puts("\nISR stack overflowed");
+        LOG_ERROR("\nISR stack overflowed\n");
     }
     /* Sanity check stack pointer and give additional feedback about hard fault */
     if (corrupted) {
-        puts("Stack pointer corrupted, reset to top of stack");
+        LOG_ERROR("Stack pointer corrupted, reset to top of stack\n");
     }
     else {
         uint32_t  r0 = sp[0];
@@ -367,58 +368,59 @@ __attribute__((used)) void hard_fault_handler(uint32_t* sp, uint32_t corrupted, 
             orig_sp += 1;
         }
 #endif /* SCB_CCR_STKALIGN_Msk */
-        puts("\nContext before hardfault:");
+        LOG_ERROR("\nContext before hardfault:\n");
 
         /* TODO: printf in ISR context might be a bad idea */
-        printf("   r0: 0x%08" PRIx32 "\n"
-               "   r1: 0x%08" PRIx32 "\n"
-               "   r2: 0x%08" PRIx32 "\n"
-               "   r3: 0x%08" PRIx32 "\n",
-               r0, r1, r2, r3);
-        printf("  r12: 0x%08" PRIx32 "\n"
-               "   lr: 0x%08" PRIx32 "\n"
-               "   pc: 0x%08" PRIx32 "\n"
-               "  psr: 0x%08" PRIx32 "\n\n",
-               r12, lr, pc, psr);
+        LOG_ERROR("   r0: 0x%08" PRIx32 "\n"
+                  "   r1: 0x%08" PRIx32 "\n"
+                  "   r2: 0x%08" PRIx32 "\n"
+                  "   r3: 0x%08" PRIx32 "\n",
+                  r0, r1, r2, r3);
+        LOG_ERROR("  r12: 0x%08" PRIx32 "\n"
+                  "   lr: 0x%08" PRIx32 "\n"
+                  "   pc: 0x%08" PRIx32 "\n"
+                  "  psr: 0x%08" PRIx32 "\n\n",
+                  r12, lr, pc, psr);
     }
 #if CPU_HAS_EXTENDED_FAULT_REGISTERS
-    puts("FSR/FAR:");
-    printf(" CFSR: 0x%08" PRIx32 "\n", cfsr);
-    printf(" HFSR: 0x%08" PRIx32 "\n", hfsr);
-    printf(" DFSR: 0x%08" PRIx32 "\n", dfsr);
-    printf(" AFSR: 0x%08" PRIx32 "\n", afsr);
+    LOG_ERROR("FSR/FAR:\n");
+    LOG_ERROR(" CFSR: 0x%08" PRIx32 "\n", cfsr);
+    LOG_ERROR(" HFSR: 0x%08" PRIx32 "\n", hfsr);
+    LOG_ERROR(" DFSR: 0x%08" PRIx32 "\n", dfsr);
+    LOG_ERROR(" AFSR: 0x%08" PRIx32 "\n", afsr);
     if (cfsr & BFARVALID_MASK) {
         /* BFAR valid flag set */
-        printf(" BFAR: 0x%08" PRIx32 "\n", bfar);
+        LOG_ERROR(" BFAR: 0x%08" PRIx32 "\n", bfar);
     }
     if (cfsr & MMARVALID_MASK) {
         /* MMFAR valid flag set */
-        printf("MMFAR: 0x%08" PRIx32 "\n", mmfar);
+        LOG_ERROR("MMFAR: 0x%08" PRIx32 "\n", mmfar);
     }
 #endif
-    puts("Misc");
-    printf("EXC_RET: 0x%08" PRIx32 "\n", exc_return);
+    LOG_ERROR("Misc\n");
+    LOG_ERROR("EXC_RET: 0x%08" PRIx32 "\n", exc_return);
 
     if (!corrupted) {
         /* Test if the EXC_RETURN returns to thread mode,
          * to check if the hard fault happened in ISR context */
         if (exc_return & 0x08) {
             kernel_pid_t active_pid = thread_getpid();
-            printf("Active thread: %"PRIi16" \"%s\"\n",
-                   active_pid, thread_getname(active_pid));
+            LOG_ERROR("Active thread: %"PRIi16" \"%s\"\n",
+                active_pid, thread_getname(active_pid));
         }
         else {
             /* Print the interrupt number, NMI being -14, hardfault is -13,
              * IRQ0 is 0 and so on */
             uint32_t psr = sp[7];  /* Program status register. */
-            printf("Hard fault occurred in ISR number %d\n",
-                   (int)(psr & 0xff) - 16);
+            LOG_ERROR("Hard fault occurred in ISR number %d\n",
+                (int)(psr & 0xff) - 16);
         }
-        puts("Attempting to reconstruct state for debugging...");
-        printf("In GDB:\n  set $pc=0x%" PRIx32 "\n  frame 0\n  bt\n", pc);
+        LOG_ERROR("Attempting to reconstruct state for debugging...\n");
+        LOG_ERROR("In GDB:\n  set $pc=0x%" PRIx32 "\n  frame 0\n  bt\n", pc);
         int stack_left = _stack_size_left(HARDFAULT_HANDLER_REQUIRED_STACK_SPACE);
         if (stack_left < 0) {
-            printf("\nISR stack overflowed by at least %d bytes.\n", (-1 * stack_left));
+            LOG_ERROR("\nISR stack overflowed by at least %d bytes.\n",
+                (-1 * stack_left));
         }
         __asm__ volatile (
             "mov r0, %[sp]\n"

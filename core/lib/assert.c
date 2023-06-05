@@ -13,15 +13,14 @@
  * @author  Martine Lenders <mlenders@inf.fu-berlin.de>
  */
 
-#include <stdio.h>
-
 #include "assert.h"
 #include "cpu.h"
+#include "log.h"
 #include "panic.h"
 
 __NORETURN void _assert_failure(const char *file, unsigned line)
 {
-    printf("%s:%u => ", file, line);
+    LOG_ERROR("*** Assert failed: %s, %u\n", file, line);
     core_panic(PANIC_ASSERT_FAIL, "FAILED ASSERTION.");
 }
 
