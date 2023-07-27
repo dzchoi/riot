@@ -78,7 +78,8 @@ int isrpipe_write_one(isrpipe_t *isrpipe, uint8_t c);
 int isrpipe_write(isrpipe_t *isrpipe, const uint8_t *buf, size_t n);
 
 /**
- * @brief   Read data from isrpipe (blocking)
+ * @brief   Read data from isrpipe (blocking until input is available or
+ *          isrpipe_cancel_read() is invoked)
  *
  * @param[in]   isrpipe    isrpipe object to operate on
  * @param[in]   buf        buffer to write to
@@ -87,6 +88,15 @@ int isrpipe_write(isrpipe_t *isrpipe, const uint8_t *buf, size_t n);
  * @returns     number of bytes read
  */
 int isrpipe_read(isrpipe_t *isrpipe, uint8_t *buf, size_t count);
+
+/**
+ * @brief   Unblocks isrpipe_read() if it is blocking.
+ *
+ * @param[in]   isrpipe    isrpipe object to operate on
+ */
+static inline void isrpipe_cancel_read(isrpipe_t *isrpipe) {
+    mutex_unlock(&isrpipe->mutex);
+}
 
 #ifdef __cplusplus
 }

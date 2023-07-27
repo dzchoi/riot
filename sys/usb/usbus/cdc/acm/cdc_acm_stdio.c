@@ -60,9 +60,12 @@ int stdio_available(void)
 
 ssize_t stdio_read(void* buffer, size_t len)
 {
-    (void)buffer;
-    (void)len;
     return isrpipe_read(&_cdc_stdio_isrpipe, buffer, len);
+}
+
+void stdio_stop_read(void)
+{
+    isrpipe_cancel_read(&_cdc_stdio_isrpipe);
 }
 
 ssize_t stdio_write(const void* buffer, size_t len)
@@ -82,9 +85,7 @@ static void _cdc_acm_rx_pipe(usbus_cdcacm_device_t *cdcacm,
                              uint8_t *data, size_t len)
 {
     (void)cdcacm;
-    for (size_t i = 0; i < len; i++) {
-        isrpipe_write_one(&_cdc_stdio_isrpipe, data[i]);
-    }
+    isrpipe_write(&_cdc_stdio_isrpipe, data, len);
 }
 
 void usb_cdc_acm_stdio_init(usbus_t *usbus)

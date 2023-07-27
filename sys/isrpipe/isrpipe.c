@@ -48,10 +48,13 @@ int isrpipe_write(isrpipe_t *isrpipe, const uint8_t *buf, size_t n)
 
 int isrpipe_read(isrpipe_t *isrpipe, uint8_t *buffer, size_t count)
 {
-    int res;
-
-    while (!(res = tsrb_get(&isrpipe->tsrb, buffer, count))) {
+    mutex_lock(&isrpipe->mutex);
+    int res = tsrb_get(&isrpipe->tsrb, buffer, count);
+    if ( res == 0 ) {
         mutex_lock(&isrpipe->mutex);
+        res = tsrb_get(&isrpipe->tsrb, buffer, count);
     }
+    mutex_unlock(&isrpipe->mutex);
+
     return res;
 }
