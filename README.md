@@ -1,3 +1,6 @@
+### This is a submodule of `dropalt` repo (https://github.com/dzchoi/dropalt.git), which contains changes that I don't have a plan to publish to the original repo (https://github.com/RIOT-OS/RIOT.git). You can download the code from here by updating submodule of `dropalt`.
+<br/><br/>
+
 [![Nightly CI status master][master-ci-badge]][master-ci-link]
 [![Nightly HiL CI overview][hil-ci-badge]][hil-ci-link]
 [![GitHub release][release-badge]][release-link]
