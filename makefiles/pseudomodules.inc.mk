@@ -614,6 +614,8 @@ NO_PSEUDOMODULES += auto_init_screen
 NO_PSEUDOMODULES += auto_init_wdt_event
 NO_PSEUDOMODULES += auto_init_wdt_thread
 
+PSEUDOMODULES += dropalt_%
+
 # Packages and drivers may also add modules to PSEUDOMODULES in their `Makefile.include`.
 
 ## @}
