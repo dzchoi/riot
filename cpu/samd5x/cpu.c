@@ -197,8 +197,8 @@ static void fdpll_init_nolock(uint8_t idx, uint32_t f_cpu, uint8_t flags)
         return;
     }
 
-    /* Source the DPLL from 32kHz GCLK1 ( equivalent to ((f_cpu << 5) / 32768) ) */
-    const uint32_t LDR = (f_cpu >> 10);
+    /* Source the DPLL from 32kHz GCLK1 */
+    const uint32_t LDR = f_cpu / 1000u;
 
     /* disable the DPLL before changing the configuration */
     OSCCTRL->Dpll[idx].DPLLCTRLA.reg &= ~OSCCTRL_DPLLCTRLA_ENABLE;
@@ -243,6 +243,11 @@ void sam0_gclk_enable(uint8_t id)
     switch (id) {
     case SAM0_GCLK_TIMER:
         /* 8 MHz clock used by xtimer */
+#ifdef USE_DFLL_FOR_GCLK_TIMER
+        gclk_connect(SAM0_GCLK_TIMER,
+            GCLK_SOURCE_DFLL,
+            GCLK_GENCTRL_DIV(SAM0_DFLL_FREQ_HZ / GCLK_TIMER_HZ));
+#else
         if (USE_DPLL) {
             gclk_connect(SAM0_GCLK_TIMER,
                          GCLK_SOURCE_DPLL0,
@@ -258,6 +263,7 @@ void sam0_gclk_enable(uint8_t id)
                          GCLK_SOURCE_ACTIVE_XOSC,
                          GCLK_GENCTRL_DIV(SAM0_XOSC_FREQ_HZ / GCLK_TIMER_HZ));
         }
+#endif
         break;
     case SAM0_GCLK_PERIPH:
         if (USE_DFLL) {
