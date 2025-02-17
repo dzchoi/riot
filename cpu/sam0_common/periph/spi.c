@@ -366,13 +366,13 @@ int spi_init_with_gpio_mode(spi_t bus, const spi_gpio_mode_t* mode)
 {
     assert(bus < SPI_NUMOF);
 
-    if (gpio_is_valid(spi_config[bus].mosi_pin)) {
-        gpio_init(spi_config[bus].miso_pin, mode->mosi);
+    if (gpio_is_valid(spi_config[bus].miso_pin)) {
+        gpio_init(spi_config[bus].miso_pin, mode->miso);
         gpio_init_mux(spi_config[bus].miso_pin, spi_config[bus].miso_mux);
     }
 
-    if (gpio_is_valid(spi_config[bus].miso_pin)) {
-        gpio_init(spi_config[bus].mosi_pin, mode->miso);
+    if (gpio_is_valid(spi_config[bus].mosi_pin)) {
+        gpio_init(spi_config[bus].mosi_pin, mode->mosi);
         gpio_init_mux(spi_config[bus].mosi_pin, spi_config[bus].mosi_mux);
     }
 
