@@ -21,10 +21,10 @@
  * @author      Kaspar Schleiser <kaspar@schleiser.de>
  */
 
-#include <stdio.h>
 #include "kernel_defines.h"
 #include "cpu.h"
 #include "irq.h"
+#include "log.h"
 #include "panic.h"
 #include "periph/pm.h"
 
@@ -64,16 +64,16 @@ NORETURN void core_panic(core_panic_t crash_code, const char *message)
 
         /* Call back app in case it wants to store some context */
         panic_app(crash_code, message);
-        printf("*** RIOT kernel panic:\n%s\n\n", message);
+        LOG_ERROR("*** RIOT kernel panic:\n[%d] %s\n\n", crash_code, message);
 #ifdef DEVELHELP
 #ifdef MODULE_PS
         ps();
-        printf("\n");
+        LOG_ERROR("\n");
 #endif
 
-        printf("*** halted.\n\n");
+        LOG_ERROR("*** halted.\n\n");
 #else
-        printf("*** rebooting...\n\n");
+        LOG_ERROR("*** rebooting...\n\n");
 #endif
     }
     /* disable watchdog and all possible sources of interrupts */

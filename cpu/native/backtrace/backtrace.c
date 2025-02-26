@@ -15,10 +15,10 @@
 
 #include <execinfo.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "backtrace.h"
+#include "log.h"
 
 void backtrace_print(void)
 {
@@ -29,7 +29,7 @@ void backtrace_print(void)
 
     /* skip above line's return address and start with 1 */
     for (int i = 1; i < size; i++) {
-        printf("%p\n", array[i]);
+        LOG_ERROR("%p\n", array[i]);
     }
 }
 
@@ -44,7 +44,7 @@ void backtrace_print_symbols(void)
 
     /* skip above line's return address and start with 1 */
     for (int i = 1; i < size; i++) {
-        printf("%s\n", symbols[i]);
+        LOG_ERROR("%s\n", symbols[i]);
     }
     free(symbols);
 }
