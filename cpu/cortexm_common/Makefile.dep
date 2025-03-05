@@ -25,7 +25,9 @@ ifeq (1, $(DEVELHELP))
 endif
 
 # Make calls to malloc and friends thread-safe
-USEMODULE += malloc_thread_safe
+ifeq (,$(filter tlsf-malloc,$(USEMODULE)))
+  USEMODULE += malloc_thread_safe
+endif
 
 # CMSIS headers are fetched using a package
 USEPKG += cmsis

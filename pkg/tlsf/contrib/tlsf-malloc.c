@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 
+#include "architecture.h"           // for PRIuSIZE
 #include "tlsf.h"
 #include "tlsf-malloc.h"
 #include "tlsf-malloc-internal.h"
