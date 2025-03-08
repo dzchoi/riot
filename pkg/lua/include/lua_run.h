@@ -215,7 +215,7 @@ LUALIB_API int lua_riot_do_buffer(const uint8_t *buf, size_t buflen, void *memor
                                   size_t mem_size, uint16_t modmask, int *retval);
 
 #ifdef __cplusplus
-extern "C" }
+}
 #endif
 
 /** @} */

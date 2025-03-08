@@ -1,4 +1,11 @@
-SRC := $(filter-out loadlib.c lua.c luac.c,$(wildcard *.c))
+ifeq (,$(filter lua-contrib_noparser,$(USEMODULE)))
+  SRC := $(filter-out loadlib.c lua.c luac.c,$(wildcard *.c))
+else
+  # Do not include ldump.c, llex.c and lparser.c if using lua-contrib_noparser
+  SRC := lapi.c lctype.c ldebug.c ldo.c lfunc.c lgc.c lmem.c lobject.c lopcodes.c \
+    lstate.c lstring.c ltable.c ltm.c lundump.c lvm.c lzio.c \
+    lauxlib.c lbaselib.c lcorolib.c lmathlib.c ltablib.c lstrlib.c
+endif
 
 ifneq (llvm, $(TOOLCHAIN))
   CFLAGS += -fstack-usage -fconserve-stack
