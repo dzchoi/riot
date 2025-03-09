@@ -20,6 +20,7 @@
 
 #define LUA_CORE
 #include "lua.h"
+#include "lauxlib.h"
 
 /* --------------------------------------------------------------- noparser */
 #ifdef NOPARSER
@@ -38,8 +39,7 @@ LClosure *luaY_parser (lua_State *L, ZIO *z, Mbuffer *buff,
   UNUSED(dyd);
   UNUSED(name);
   UNUSED(firstchar);
-  lua_pushliteral(L,"parser not available");
-  lua_error(L);
+  luaL_error(L, "parser not available");
   return NULL;
 }
 #endif
@@ -53,8 +53,7 @@ LUAI_FUNC int luaU_dump (lua_State* L, const Proto* f, lua_Writer w, void* data,
   UNUSED(w);
   UNUSED(data);
   UNUSED(strip);
-  lua_pushliteral(L,"dumper not available");
-  lua_error(L);
+  luaL_error(L, "dumper not available");
   return 0;
 }
 #endif
@@ -67,8 +66,7 @@ LUAI_FUNC Closure* luaU_undump (lua_State* L, ZIO* Z, Mbuffer* buff, const char*
   UNUSED(Z);
   // UNUSED(buff);
   UNUSED(name);
-  lua_pushliteral(L,"binary loader not available");
-  lua_error(L);
+  luaL_error(L, "binary loader not available");
   return NULL;
 }
 #endif

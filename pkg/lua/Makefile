@@ -1,7 +1,7 @@
 PKG_NAME=lua
 PKG_URL=https://github.com/lua/lua.git
-# tag: v5-3-4
-PKG_VERSION=e354c6355e7f48e087678ec49e340ca0696725b1
+# tag: v5.3.6
+PKG_VERSION=75ea9ccbea7c4886f30da147fb67b693b2624c26
 PKG_LICENSE=MIT
 
 include $(RIOTBASE)/pkg/pkg.mk
