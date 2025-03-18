@@ -71,6 +71,11 @@ void usbus_create(char *stack, int stacksize, char priority,
 uint16_t usbus_add_string_descriptor(usbus_t *usbus, usbus_string_t *desc,
                                      const char *str)
 {
+    if ( str == NULL || str[0] == '\0' ) {
+        desc->str = NULL;
+        return desc->idx = 0;
+    }
+
     desc->next = usbus->strings;
     usbus->strings = desc;
     desc->idx = usbus->str_idx++;
