@@ -320,10 +320,12 @@ static int _control_handler(usbus_t *usbus, usbus_handler_t *handler,
                 usbdev_ep_xmit(data_out->ep, cdcacm->out_buf,
                                CONFIG_USBUS_CDC_ACM_BULK_EP_SIZE);
                 usbus_cdc_acm_flush(cdcacm);
+                cdcacm->cb(cdcacm, NULL, USBUS_CDC_ACM_LINE_STATE_DTE);
             }
             else {
                 cdcacm->state = USBUS_CDC_ACM_LINE_STATE_DISCONNECTED;
                 DEBUG("CDC ACM: DTE disabled on interface %u\n", setup->index);
+                cdcacm->cb(cdcacm, NULL, USBUS_CDC_ACM_LINE_STATE_DISCONNECTED);
             }
             break;
         default:

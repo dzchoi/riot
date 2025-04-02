@@ -32,7 +32,12 @@
 #include "usb/usbus/cdc/acm.h"
 
 static usbus_cdcacm_device_t cdcacm;
+#ifdef CONFIG_USBUS_CDC_ACM_STDOUT_BUF_SIZE
+static uint8_t _cdc_tx_buf_mem[CONFIG_USBUS_CDC_ACM_STDOUT_BUF_SIZE]
+    __attribute__((section(".noinit"), aligned(sizeof(uint32_t))));
+#else
 static uint8_t _cdc_tx_buf_mem[CONFIG_USBUS_CDC_ACM_STDIO_BUF_SIZE];
+#endif
 
 static ssize_t _write(const void* buffer, size_t len)
 {
@@ -47,16 +52,17 @@ static ssize_t _write(const void* buffer, size_t len)
     return (char *)buffer - start;
 }
 
-static void _cdc_acm_rx_pipe(usbus_cdcacm_device_t *cdcacm,
-                             uint8_t *data, size_t len)
+__attribute__((weak)) void cdc_acm_rx_pipe(
+    usbus_cdcacm_device_t *cdcacm, uint8_t *data, size_t len)
 {
     (void)cdcacm;
-    isrpipe_write(&stdin_isrpipe, data, len);
+    if ( data )
+        isrpipe_write(&stdin_isrpipe, data, len);
 }
 
 void usb_cdc_acm_stdio_init(usbus_t *usbus)
 {
-    usbus_cdc_acm_init(usbus, &cdcacm, _cdc_acm_rx_pipe, NULL,
+    usbus_cdc_acm_init(usbus, &cdcacm, cdc_acm_rx_pipe, NULL,
                        _cdc_tx_buf_mem, sizeof(_cdc_tx_buf_mem));
 }
 
