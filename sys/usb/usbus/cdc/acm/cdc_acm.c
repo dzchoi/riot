@@ -268,7 +268,6 @@ static int _control_handler(usbus_t *usbus, usbus_handler_t *handler,
             if (!(cdcacm->coding_cb) && !IS_USED(MODULE_USB_BOARD_RESET)) {
                 /* Line coding not supported, return STALL */
                 DEBUG("CDCACM: line coding not supported\n");
-                return -1;
             }
             if (setup->length != sizeof(usb_req_cdcacm_coding_t)) {
                 return -1; /* Incorrect amount of data expected */
