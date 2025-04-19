@@ -157,7 +157,9 @@ size_t usbus_cdc_acm_submit(usbus_cdcacm_device_t *cdcacm, const uint8_t *buf, s
         old = irq_disable();
         n = tsrb_add(&cdcacm->tsrb, buf, len);
         irq_restore(old);
-        return n;
+        // Avoid stdio_write() from being stuck when DTE consumes data too slowly.
+        if ( n > 0 )
+            return n;
     }
     /* stuff as much data as possible into tsrb, discarding the oldest */
     old = irq_disable();
