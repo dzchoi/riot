@@ -187,7 +187,13 @@ void usbus_cdc_acm_set_coding_cb(usbus_cdcacm_device_t *cdcacm,
 /* flush event */
 void usbus_cdc_acm_flush(usbus_cdcacm_device_t *cdcacm)
 {
-    if (cdcacm->usbus) {
+    // Ensure that stdio_write() can be safely called at any time even when CDC ACM is
+    // initializing.
+    // Note: checking for non-null cdcacm->flush.handler, which is initialized in
+    // _usbus_thread(), ensures that usbus->queue has been properly set up and that the
+    // pushed cdcacm->flush event will be handled correctly in the main loop of
+    // _usbus_thread().
+    if (cdcacm->usbus && cdcacm->flush.handler) {
         usbus_event_post(cdcacm->usbus, &cdcacm->flush);
     }
 }
