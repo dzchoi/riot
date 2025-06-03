@@ -351,8 +351,7 @@ static void _handle_in(usbus_cdcacm_device_t *cdcacm,
     }
     /* copy at most CONFIG_USBUS_CDC_ACM_BULK_EP_SIZE chars from input into ep->buf */
     unsigned old = irq_disable();
-    while (!tsrb_empty(&cdcacm->tsrb)) {
-        int c = tsrb_get_one(&cdcacm->tsrb);
+    for ( int c ; (c = tsrb_get_one(&cdcacm->tsrb)) >= 0 ; ) {
         cdcacm->in_buf[cdcacm->occupied++] = (uint8_t)c;
         if (cdcacm->occupied >= CONFIG_USBUS_CDC_ACM_BULK_EP_SIZE) {
             break;
@@ -375,7 +374,7 @@ static void _transfer_handler(usbus_t *usbus, usbus_handler_t *handler,
         if (len > 0) {
             cdcacm->cb(cdcacm, cdcacm->out_buf, len);
         }
-        usbdev_ep_xmit(ep, cdcacm->out_buf, CONFIG_USBUS_CDC_ACM_BULK_EP_SIZE);
+        usbdev_ep_xmit(ep, cdcacm->out_buf, 0);
     }
     if ((ep->dir == USB_EP_DIR_IN) && (ep->type == USB_EP_TYPE_BULK)) {
         size_t prev_occupied = cdcacm->occupied;

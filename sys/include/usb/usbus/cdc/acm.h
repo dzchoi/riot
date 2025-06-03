@@ -174,7 +174,7 @@ struct usbus_cdcacm_device {
     /**
      * @brief Device to host data buffer
      */
-    usbdev_ep_buf_t in_buf[CONFIG_USBUS_CDC_ACM_STDIO_BUF_SIZE];
+    usbdev_ep_buf_t in_buf[CONFIG_USBUS_CDC_ACM_BULK_EP_SIZE];
 };
 
 /**
