@@ -378,9 +378,14 @@ static void _transfer_handler(usbus_t *usbus, usbus_handler_t *handler,
         usbdev_ep_xmit(ep, cdcacm->out_buf, CONFIG_USBUS_CDC_ACM_BULK_EP_SIZE);
     }
     if ((ep->dir == USB_EP_DIR_IN) && (ep->type == USB_EP_TYPE_BULK)) {
+        size_t prev_occupied = cdcacm->occupied;
         cdcacm->occupied = 0;
-        if (!tsrb_empty(&cdcacm->tsrb)) {
-            return _handle_in(cdcacm, ep);
+        if ( !tsrb_empty(&cdcacm->tsrb)
+          || prev_occupied == CONFIG_USBUS_CDC_ACM_BULK_EP_SIZE ) {
+            // Send a Zero-Length Packet (ZLP) following a data packet that exactly
+            // matches the endpoint size. Without this, the host may not process the
+            // packet immediately.
+            _handle_in(cdcacm, ep);
         }
     }
 }
