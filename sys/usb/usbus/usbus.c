@@ -472,7 +472,9 @@ static void *_usbus_thread(void *args)
             event_t *event = event_get(&usbus->queue);
             if (event) {
                 event->handler(event);
-                thread_flags_set(thread_get(usbus->pid), THREAD_FLAG_EVENT);
+                unsigned state = irq_disable();
+                thread_get(usbus->pid)->flags |= THREAD_FLAG_EVENT;
+                irq_restore(state);
             }
         }
 
