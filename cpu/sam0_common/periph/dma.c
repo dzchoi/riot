@@ -18,6 +18,8 @@
  * @}
  */
 
+#include <assert.h>
+
 #include "periph_cpu.h"
 #include "periph_conf.h"
 #include "mutex.h"
@@ -164,7 +166,8 @@ void dma_setup(dma_t dma, unsigned trigger, uint8_t prio, bool irq)
     DMAC->Channel[dma].CHPRILVL.reg = prio;
     DMAC->Channel[dma].CHINTENCLR.reg = 0xFF;
     if (irq) {
-        DMAC->Channel[dma].CHINTENSET.reg = DMAC_CHINTENSET_TCMPL;
+        DMAC->Channel[dma].CHINTENSET.reg =
+            DMAC_CHINTENSET_TCMPL | DMAC_CHINTENSET_TERR | DMAC_CHINTENSET_SUSP;
     }
 #endif
 }
@@ -296,9 +299,11 @@ void isr_dmac(void)
     /* Clear the pending interrupt flags for this channel by writing the
      * channel ID together with the flags to clear */
     DMAC->INTPEND.reg = status;
-    if (status & DMAC_INTPEND_TCMPL) {
-        mutex_unlock(&dma_ctx[dma].sync_lock);
-    }
+    // Assert transfer completed successfully. If not, unexpected DMA state:
+    //  - DMAC_INTPEND_TERR: Transfer error (e.g. bus fault or invalid address)
+    //  - DMAC_INTPEND_SUSP: Transfer suspended at the end of a block transfer.
+    assert( status & DMAC_INTPEND_TCMPL );
+    mutex_unlock(&dma_ctx[dma].sync_lock);
     DEBUG("[DMA] IRQ: %u: %x\n", dma, status);
     cortexm_isr_end();
 }
