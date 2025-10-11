@@ -21,8 +21,6 @@
  * @author      Kaspar Schleiser <kaspar@schleiser.de>
  */
 
-#include "kernel_defines.h"
-#include "cpu.h"
 #include "irq.h"
 #include "log.h"
 #include "panic.h"
@@ -64,35 +62,34 @@ NORETURN void core_panic(core_panic_t crash_code, const char *message)
 
         /* Call back app in case it wants to store some context */
         panic_app(crash_code, message);
-        LOG_ERROR("*** RIOT kernel panic:\n[%d] %s\n\n", crash_code, message);
-#ifdef DEVELHELP
-#ifdef MODULE_PS
+        LOG_ERROR("*** RIOT kernel panic: %s", message);
+#if defined(DEVELHELP) && defined(MODULE_PS)
         ps();
-        LOG_ERROR("\n");
-#endif
-
-        LOG_ERROR("*** halted.\n\n");
-#else
-        LOG_ERROR("*** rebooting...\n\n");
 #endif
     }
-    /* disable watchdog and all possible sources of interrupts */
+
+    /* Disable all maskable interrupts. */
     irq_disable();
     panic_arch();
+
 #if CONFIG_CORE_REBOOT_ON_PANIC && defined(MODULE_PERIPH_PM)
     /* DEVELHELP not set => reboot system */
+    LOG_ERROR("*** rebooting...");
     pm_reboot();
 #else
     /* DEVELHELP set => power off system */
     /*               or start bootloader */
-#if defined(MODULE_USB_BOARD_RESET)
+#   if defined(MODULE_USB_BOARD_RESET)
+    LOG_ERROR("*** rebooting...");
     usb_board_reset_in_bootloader();
-#elif defined(MODULE_PERIPH_PM)
+#   elif defined(MODULE_PERIPH_PM)
+    LOG_ERROR("*** halted.");
     pm_off();
-#else
+#   else
+    LOG_ERROR("*** halted.");
     while (1) {}
+#   endif
 #endif
-#endif /* DEVELHELP */
 
     /* tell the compiler that we won't return from this function
        (even if we actually won't even get here...) */

@@ -29,7 +29,7 @@ void backtrace_print(void)
 
     /* skip above line's return address and start with 1 */
     for (int i = 1; i < size; i++) {
-        LOG_ERROR("%p\n", array[i]);
+        LOG_ERROR("%p", array[i]);
     }
 }
 
@@ -44,7 +44,7 @@ void backtrace_print_symbols(void)
 
     /* skip above line's return address and start with 1 */
     for (int i = 1; i < size; i++) {
-        LOG_ERROR("%s\n", symbols[i]);
+        LOG_ERROR(symbols[i]);
     }
     free(symbols);
 }

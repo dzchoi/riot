@@ -287,13 +287,13 @@ void ztimer_init(void)
 /* Step 4: initialize used ztimer-periphery */
 #if INIT_ZTIMER_TIMER
     LOG_DEBUG(
-        "ztimer_init(): ZTIMER_TIMER using periph timer %u, freq %lu, width %u\n",
+        "ztimer_init(): ZTIMER_TIMER using periph timer %u, freq %lu, width %u",
         CONFIG_ZTIMER_USEC_DEV, ZTIMER_TIMER_FREQ,
         CONFIG_ZTIMER_USEC_WIDTH);
     ztimer_periph_timer_init(&ZTIMER_TIMER, CONFIG_ZTIMER_USEC_DEV,
                              ZTIMER_TIMER_FREQ, WIDTH_TO_MAXVAL(CONFIG_ZTIMER_USEC_WIDTH));
 #  if MODULE_PM_LAYERED && !MODULE_ZTIMER_ONDEMAND
-    LOG_DEBUG("ztimer_init(): ZTIMER_TIMER setting block_pm_mode to %i\n",
+    LOG_DEBUG("ztimer_init(): ZTIMER_TIMER setting block_pm_mode to %i",
               CONFIG_ZTIMER_TIMER_BLOCK_PM_MODE);
     ZTIMER_TIMER_CLK.block_pm_mode = CONFIG_ZTIMER_TIMER_BLOCK_PM_MODE;
 #  endif
@@ -301,33 +301,33 @@ void ztimer_init(void)
 
 #if INIT_ZTIMER_LPTIMER
     LOG_DEBUG(
-        "ztimer_init(): ZTIMER_LPTIMER using periph timer %u, freq %lu, width %u\n",
+        "ztimer_init(): ZTIMER_LPTIMER using periph timer %u, freq %lu, width %u",
         CONFIG_ZTIMER_LPTIMER_DEV, ZTIMER_LPTIMER_FREQ,
         CONFIG_ZTIMER_LPTIMER_WIDTH);
     ztimer_periph_timer_init(&ZTIMER_LPTIMER, CONFIG_ZTIMER_LPTIMER_DEV,
                              ZTIMER_LPTIMER_FREQ, WIDTH_TO_MAXVAL(CONFIG_ZTIMER_LPTIMER_WIDTH));
 #  if MODULE_PM_LAYERED && !MODULE_ZTIMER_ONDEMAND
-    LOG_DEBUG("ztimer_init(): ZTIMER_LPTIMER setting block_pm_mode to %i\n",
+    LOG_DEBUG("ztimer_init(): ZTIMER_LPTIMER setting block_pm_mode to %i",
               CONFIG_ZTIMER_LPTIMER_BLOCK_PM_MODE);
     ZTIMER_LPTIMER_CLK.block_pm_mode = CONFIG_ZTIMER_LPTIMER_BLOCK_PM_MODE;
 #  endif
 #endif
 
 #if INIT_ZTIMER_RTT
-    LOG_DEBUG("ztimer_init(): initializing rtt\n");
+    LOG_DEBUG("ztimer_init(): initializing rtt");
     ztimer_periph_rtt_init(&ZTIMER_RTT);
 #  if MODULE_PM_LAYERED && !MODULE_ZTIMER_ONDEMAND
-    LOG_DEBUG("ztimer_init(): ZTIMER_RTT setting block_pm_mode to %i\n",
+    LOG_DEBUG("ztimer_init(): ZTIMER_RTT setting block_pm_mode to %i",
               CONFIG_ZTIMER_RTT_BLOCK_PM_MODE);
     ZTIMER_RTT_CLK.block_pm_mode = CONFIG_ZTIMER_RTT_BLOCK_PM_MODE;
 #  endif
 #endif
 
 #if INIT_ZTIMER_RTC
-    LOG_DEBUG("ztimer_init(): initializing rtc\n");
+    LOG_DEBUG("ztimer_init(): initializing rtc");
     ztimer_periph_rtc_init(&ZTIMER_RTC);
 #  if MODULE_PM_LAYERED && !MODULE_ZTIMER_ONDEMAND
-    LOG_DEBUG("ztimer_init(): ZTIMER_RTC setting block_pm_mode to %i\n",
+    LOG_DEBUG("ztimer_init(): ZTIMER_RTC setting block_pm_mode to %i",
               CONFIG_ZTIMER_RTC_BLOCK_PM_MODE);
     ZTIMER_RTC_CLK.block_pm_mode = CONFIG_ZTIMER_RTC_BLOCK_PM_MODE;
 #  endif
@@ -337,18 +337,18 @@ void ztimer_init(void)
 #if MODULE_ZTIMER_USEC
 #  if ZTIMER_TIMER_FREQ != FREQ_1MHZ
 #    if ZTIMER_TIMER_FREQ == FREQ_250KHZ
-    LOG_DEBUG("ztimer_init(): ZTIMER_USEC convert_shift %lu to 1000000\n",
+    LOG_DEBUG("ztimer_init(): ZTIMER_USEC convert_shift %lu to 1000000",
               ZTIMER_TIMER_FREQ);
     ztimer_convert_shift_up_init(&_ztimer_convert_shift_usec,
                                  ZTIMER_USEC_BASE, 2);
 #    else
-    LOG_DEBUG("ztimer_init(): ZTIMER_USEC convert_frac %lu to 1000000\n",
+    LOG_DEBUG("ztimer_init(): ZTIMER_USEC convert_frac %lu to 1000000",
               ZTIMER_TIMER_FREQ);
     ztimer_convert_frac_init(&_ztimer_convert_frac_usec, ZTIMER_USEC_BASE,
                              FREQ_1MHZ, ZTIMER_TIMER_FREQ);
 #    endif
 #  else
-    LOG_DEBUG("ztimer_init(): ZTIMER_USEC without conversion\n");
+    LOG_DEBUG("ztimer_init(): ZTIMER_USEC without conversion");
 #  endif
 
     /* warm-up time if set and needed */
@@ -375,7 +375,7 @@ void ztimer_init(void)
                               &ZTIMER_USEC->adjust_set, ztimer_overhead_set);
     }
     if (ZTIMER_USEC->adjust_set) {
-        LOG_DEBUG("ztimer_init(): ZTIMER_USEC setting adjust_set value to %i\n",
+        LOG_DEBUG("ztimer_init(): ZTIMER_USEC setting adjust_set value to %i",
                   ZTIMER_USEC->adjust_set);
     }
 
@@ -390,20 +390,20 @@ void ztimer_init(void)
     }
 
     if (ZTIMER_USEC->adjust_sleep) {
-        LOG_DEBUG("ztimer_init(): ZTIMER_USEC setting adjust_sleep value to %i\n",
+        LOG_DEBUG("ztimer_init(): ZTIMER_USEC setting adjust_sleep value to %i",
                   ZTIMER_USEC->adjust_sleep);
     }
 #endif
 
 #if MODULE_ZTIMER_MSEC
 #  if ZTIMER_MSEC_CONVERT_LOWER_FREQ
-    LOG_DEBUG("ztimer_init(): ZTIMER_MSEC convert_frac from %lu to 1000\n",
+    LOG_DEBUG("ztimer_init(): ZTIMER_MSEC convert_frac from %lu to 1000",
               (long unsigned)ZTIMER_MSEC_CONVERT_LOWER_FREQ);
     ztimer_convert_frac_init(&_ztimer_convert_frac_msec, ZTIMER_MSEC_BASE,
                              FREQ_1KHZ, ZTIMER_MSEC_CONVERT_LOWER_FREQ);
 #  endif
 #  ifdef CONFIG_ZTIMER_MSEC_ADJUST
-    LOG_DEBUG("ztimer_init(): ZTIMER_MSEC setting adjust value to %i\n",
+    LOG_DEBUG("ztimer_init(): ZTIMER_MSEC setting adjust value to %i",
               CONFIG_ZTIMER_MSEC_ADJUST);
     ZTIMER_MSEC->adjust = CONFIG_ZTIMER_MSEC_ADJUST;
 #  endif
@@ -411,7 +411,7 @@ void ztimer_init(void)
 
 #if MODULE_ZTIMER_SEC
 #  if ZTIMER_SEC_CONVERT_LOWER_FREQ
-    LOG_DEBUG("ztimer_init(): ZTIMER_SEC convert_frac from %lu to 1\n",
+    LOG_DEBUG("ztimer_init(): ZTIMER_SEC convert_frac from %lu to 1",
               (long unsigned)ZTIMER_SEC_CONVERT_LOWER_FREQ);
     ztimer_convert_frac_init(&_ztimer_convert_frac_sec, ZTIMER_SEC_BASE,
                              FREQ_1HZ, ZTIMER_SEC_CONVERT_LOWER_FREQ);

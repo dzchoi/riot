@@ -23,15 +23,29 @@
 #include "cpu.h"
 #include "log.h"
 
-#ifdef DEVELHELP
-static void print_ipsr(void)
+#ifdef DEBUG_ASSERT_BREAKPOINT
+// Override the weak assert_breakpoint() in core/lib/assert.c.
+void assert_breakpoint(void)
 {
-    uint32_t ipsr = __get_IPSR() & IPSR_ISR_Msk;
+#   ifdef CoreDebug_DHCSR_C_DEBUGEN_Msk
+    // If a debugger is attached, let the debugger break here. Otherwise, we skip it as
+    // `bkpt` will cause either a fault escalation to hardfault or a CPU lockup.
+    // Note: On Cortex-M0/M0+, CoreDebug->DHCSR will return always 0, unless a debugger
+    // has written the magic unlock value (0xA05F0000) to it.
+    if ( CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk )
+        __asm__("bkpt #1");
+#   endif
+}
+#endif
 
-    if (ipsr) {
+#ifdef DEVELHELP
+static inline void print_ipsr(void)
+{
+    uint32_t ipsr = __get_IPSR();
+    if ( ipsr ) {
         /* if you get here, you might have forgotten to implement the isr
          * for the printed interrupt number */
-        LOG_ERROR("Inside isr %d\n", ((int)ipsr) - 16);
+        LOG_ERROR("Inside ISR/IRQ %d", ((int)ipsr) - 16);
     }
 }
 #endif
@@ -40,15 +54,16 @@ void panic_arch(void)
 {
 #ifdef DEVELHELP
     print_ipsr();
-    /* CM0+ has a C_DEBUGEN bit but it is NOT accessible by CPU (only by debugger) */
-#ifdef CoreDebug_DHCSR_C_DEBUGEN_Msk
-    if (CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk) {
-        /* if Debug session is running, tell the debugger to break here.
-            Skip it otherwise as this instruction will cause either a fault
-            escalation to hardfault or a CPU lockup */
-        __asm__("bkpt #0");
-    }
-#endif /* CoreDebug_DHCSR_C_DEBUGEN_Msk */
 
+// This can be done with `CoreDebug->DEMCR |= CoreDebug_DEMCR_VC_HARDERR_Msk` from a
+// debugger or from the start of the firmware.
+// #ifdef CoreDebug_DHCSR_C_DEBUGEN_Msk
+//     if (CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk) {
+//         /* if Debug session is running, tell the debugger to break here.
+//             Skip it otherwise as this instruction will cause either a fault
+//             escalation to hardfault or a CPU lockup */
+//         __asm__("bkpt #0");
+//     }
+// #endif /* CoreDebug_DHCSR_C_DEBUGEN_Msk */
 #endif
 }

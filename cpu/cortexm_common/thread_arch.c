@@ -277,6 +277,70 @@ void *thread_isr_stack_start(void)
     return (void *)&_sstack;
 }
 
+#ifdef DEVELHELP
+// Gets the ESF (r0–r3, r12, lr, pc, xPSR) for a non-active thread. Returns NULL if the
+// thread is currently running and not interrupted.
+static uint32_t* thread_get_esf(thread_t* thread)
+{
+    // Context                   | IPSR  | Active SP | PSP Status | sched_active_thread
+    // --------------------------|-------|-----------|------------|---------------------
+    // Boot code executing       |   0   | MSP       | Unused     | NULL
+    // Fault/ISR from boot code  |  >0   | MSP       | Unused     | NULL
+    // Thread running            |   0   | PSP       | Active     | Valid thread_t*
+    // Fault/ISR from thread     |  >0   | MSP       | Saved      | Valid thread_t*
+
+    // assert( thread != NULL && thread_get_active() != NULL )
+    if ( thread == thread_get_active() ) {
+        if ( __get_IPSR() == 0 )
+            // If the thread is actively running, not interrupted, return NULL.
+            return NULL;
+        else
+            // If the thread is interrupted, return ESF (Exception Stack Frame).
+            return (uint32_t*)__get_PSP();
+    }
+
+    // It's not the current thread. Look up its saved context. Refer to isr_pendsv() for
+    // the details about context saving and restoring.
+    uint32_t* sp = (uint32_t*)thread_get_sp(thread);
+
+    // Skip r4–r11, lr (9 words)
+    sp += 9;
+
+#ifdef MODULE_CORTEXM_FPU
+    // Check if FPU context was saved
+    uint32_t lr = sp[-1];  // lr (i.e. EXC_RETURN) was last in r4–r11,lr
+    if ( (lr & 0x10) == 0 )
+        // FPU context present → skip 16 words
+        sp += 16;
+#endif
+
+    return sp;
+}
+
+static void thread_lookup_esf(thread_t* thread, char* buffer, int i)
+{
+    uint32_t* esf = thread_get_esf(thread);
+    if ( esf == NULL )
+        __builtin_strcpy(buffer, "running");
+    else
+        snprintf(buffer, 9, "%08X", (unsigned)esf[i]);
+}
+
+// Override the weak thread_get_lr() in sys/ps/ps.c.
+void thread_get_lr(thread_t* thread, char* buffer)
+{
+    // assert( thread != NULL && thread_get_active() != NULL )
+    thread_lookup_esf(thread, buffer, 5);
+}
+
+// Override the weak thread_get_lr() in sys/ps/ps.c.
+void thread_get_pc(thread_t* thread, char* buffer)
+{
+    // assert( thread != NULL && thread_get_active() != NULL )
+    thread_lookup_esf(thread, buffer, 6);
+}
+#endif  // DEVELHELP
+
 void NORETURN cpu_switch_context_exit(void)
 {
 #ifdef MODULE_CORTEXM_FPU
