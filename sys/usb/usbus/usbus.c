@@ -454,9 +454,16 @@ static void *_usbus_thread(void *args)
         }
         if (flags & USBUS_THREAD_FLAG_USBDEV_EP) {
             uint32_t events = _get_and_reset_ep_events(usbus);
+            /* Dispatch pending endpoint events, IN direction before OUT direction, and
+             * within each direction from higher endpoint number to lower. The IN-before-
+             * OUT ordering is required by the ep0 control endpoint: if a STATUS-IN
+             * completion and a new SETUP arrive in the same dispatch round, dispatching
+             * the SETUP (OUT) while the ep0 state machine is still IN-pending
+             * (INACK/INDATA) would silently drop it -- _handle_tr_complete()'s switch
+             * cases for those states match only ep->dir == IN. */
             while (events) {
-                unsigned num = bitarithm_lsb(events);
-                events &= ~(1 << num);
+                unsigned num = bitarithm_msb(events);
+                events &= ~(1u << num);
                 if (num < USBDEV_NUM_ENDPOINTS) {
                     /* OUT endpoint */
                     usbdev_ep_esr(usbus->ep_out[num].ep);
@@ -466,7 +473,6 @@ static void *_usbus_thread(void *args)
                     usbdev_ep_esr(usbus->ep_in[num - USBDEV_NUM_ENDPOINTS].ep);
                 }
             }
-
         }
         if (flags & THREAD_FLAG_EVENT) {
             event_t *event = event_get(&usbus->queue);
