@@ -1,0 +1,203 @@
+From b988e1d4b9e1fe3d2fa4c03df8343546c1779fe0 Mon Sep 17 00:00:00 2001
+From: dzchoi <19231860+dzchoi@users.noreply.github.com>
+Date: Mon, 3 Aug 2026 17:47:57 -0400
+Subject: [PATCH] Proto::code and Proto::lineinfo are now retained in flash
+ instead of being copied to RAM.
+
+---
+ lfunc.c   | 10 ++++++++++
+ lgc.c     | 11 ++++++++++-
+ lobject.h |  4 ++++
+ luaconf.h | 18 ++++++++++++++++++
+ lundump.c | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 5 files changed, 96 insertions(+), 3 deletions(-)
+
+diff --git a/lfunc.c b/lfunc.c
+index ccafbb8..57d55ad 100644
+--- a/lfunc.c
++++ b/lfunc.c
+@@ -106,6 +106,10 @@ Proto *luaF_newproto (lua_State *L) {
+   f->code = NULL;
+   f->cache = NULL;
+   f->sizecode = 0;
++#ifdef LUA_EMBEDDED
++  f->code_in_rom = 0;
++  f->lineinfo_in_rom = 0;
++#endif
+   f->lineinfo = NULL;
+   f->sizelineinfo = 0;
+   f->upvalues = NULL;
+@@ -123,9 +127,15 @@ Proto *luaF_newproto (lua_State *L) {
+ 
+ 
+ void luaF_freeproto (lua_State *L, Proto *f) {
++#ifdef LUA_EMBEDDED
++  if (!f->code_in_rom)
++#endif
+   luaM_freearray(L, f->code, f->sizecode);
+   luaM_freearray(L, f->p, f->sizep);
+   luaM_freearray(L, f->k, f->sizek);
++#ifdef LUA_EMBEDDED
++  if (!f->lineinfo_in_rom)
++#endif
+   luaM_freearray(L, f->lineinfo, f->sizelineinfo);
+   luaM_freearray(L, f->locvars, f->sizelocvars);
+   luaM_freearray(L, f->upvalues, f->sizeupvalues);
+diff --git a/lgc.c b/lgc.c
+index db4df82..e47ca9a 100644
+--- a/lgc.c
++++ b/lgc.c
+@@ -489,10 +489,19 @@ static int traverseproto (global_State *g, Proto *f) {
+     markobjectN(g, f->p[i]);
+   for (i = 0; i < f->sizelocvars; i++)  /* mark local-variable names */
+     markobjectN(g, f->locvars[i].varname);
+-  return sizeof(Proto) + sizeof(Instruction) * f->sizecode +
++  return sizeof(Proto) +
++#ifdef LUA_EMBEDDED
++                         (f->code_in_rom ? 0 : sizeof(Instruction) * f->sizecode) +
++#else
++                         sizeof(Instruction) * f->sizecode +
++#endif
+                          sizeof(Proto *) * f->sizep +
+                          sizeof(TValue) * f->sizek +
++#ifdef LUA_EMBEDDED
++                         (f->lineinfo_in_rom ? 0 : sizeof(int) * f->sizelineinfo) +
++#else
+                          sizeof(int) * f->sizelineinfo +
++#endif
+                          sizeof(LocVar) * f->sizelocvars +
+                          sizeof(Upvaldesc) * f->sizeupvalues;
+ }
+diff --git a/lobject.h b/lobject.h
+index 2408861..c920e35 100644
+--- a/lobject.h
++++ b/lobject.h
+@@ -409,6 +409,10 @@ typedef struct Proto {
+   lu_byte numparams;  /* number of fixed parameters */
+   lu_byte is_vararg;
+   lu_byte maxstacksize;  /* number of registers needed by this function */
++#ifdef LUA_EMBEDDED
++  lu_byte code_in_rom;  /* 1 if 'code' points into ROM, not RAM. */
++  lu_byte lineinfo_in_rom;  /* 1 if 'lineinfo' points into ROM */
++#endif
+   int sizeupvalues;  /* size of 'upvalues' */
+   int sizek;  /* size of 'k' */
+   int sizecode;
+diff --git a/luaconf.h b/luaconf.h
+index f683297..34ec276 100644
+--- a/luaconf.h
++++ b/luaconf.h
+@@ -38,6 +38,24 @@
+ #endif
+ 
+ 
++/*
++@@ luai_isromptr(p) tells the loader whether a pointer refers to ROM
++** that lives for the whole lifetime of the Lua state (e.g. memory-mapped
++** internal flash). When true, luaU_undump() keeps the function code
++** array in ROM instead of copying it into RAM; luaF_freeproto() then
++** skips the corresponding free. Only consulted when LUA_EMBEDDED is
++** defined.
++**
++** On SAMD5x (Cortex-M4) the internal flash sits below 0x20000000 and
++** SRAM starts at 0x20000000. Override via -Dluai_isromptr(p)=... in
++** CFLAGS for other targets.
++*/
++#if defined(LUA_EMBEDDED) && !defined(luai_isromptr)
++#include <stdint.h>
++#define luai_isromptr(p)  ((uintptr_t)(p) < 0x20000000u)
++#endif
++
++
+ /*
+ @@ LUA_USE_C89 controls the use of non-ISO-C89 features.
+ ** Define it if you want Lua to avoid the use of a few C99 features
+diff --git a/lundump.c b/lundump.c
+index b5713a3..68c1835 100644
+--- a/lundump.c
++++ b/lundump.c
+@@ -11,6 +11,9 @@
+ 
+ 
+ #include <string.h>
++#ifdef LUA_EMBEDDED
++#include <stdint.h>
++#endif
+ 
+ #include "lua.h"
+ 
+@@ -110,10 +113,47 @@ static TString *LoadString (LoadState *S, Proto *p) {
+ }
+ 
+ 
++#ifdef LUA_EMBEDDED
++/* If the next n*elem_size bytes are all present in a stable ROM buffer,
++** return a pointer to them and advance the stream past them. Return NULL
++** otherwise, so the caller falls back to allocating in RAM and copying.
++**
++** Note: We don't require any particular alignment of Z->p, since
++** Cortex-M4(F) handles unaligned word loads natively:
++**   - CCR.UNALIGN_TRP = 0 (RIOT default)
++**   - Songle-word LDR on an unaligned address: 1 extra cycle vs aligned
++**   - LDM/STM/LDRD: would fault - but Lua never uses them, only single LDRs.
++** Where it can impact in the VM:
++**   - f->code: hit once per Lua instruction in the dispatch loop
++**     `Instruction i = *(ci->u.l.savedpc++)` in lvm.c.
++**   - f->lineinfo: only touched on a Lua error / debug.getinfo path.
++*/
++static const void *takeRomArray(ZIO *Z, int n, size_t elem_size)
++{
++  size_t nbytes = (size_t)n * elem_size;
++  if (n > 0 && luai_isromptr(Z->p) && Z->n >= nbytes) {
++    const void *p = Z->p;
++    Z->p += nbytes;
++    Z->n -= nbytes;
++    return p;
++  }
++  return NULL;
++}
++#endif
++
++
+ static void LoadCode (LoadState *S, Proto *f) {
+   int n = LoadInt(S);
+-  f->code = luaM_newvector(S->L, n, Instruction);
+   f->sizecode = n;
++#ifdef LUA_EMBEDDED
++  const void *rom = takeRomArray(S->Z, n, sizeof(Instruction));
++  if (rom != NULL) {
++    f->code = cast(Instruction*, cast(uintptr_t, rom));
++    f->code_in_rom = 1;
++    return;
++  }
++#endif
++  f->code = luaM_newvector(S->L, n, Instruction);
+   LoadVector(S, f->code, n);
+ }
+ 
+@@ -187,9 +227,21 @@ static void LoadUpvalues (LoadState *S, Proto *f) {
+ static void LoadDebug (LoadState *S, Proto *f) {
+   int i, n;
+   n = LoadInt(S);
+-  f->lineinfo = luaM_newvector(S->L, n, int);
+   f->sizelineinfo = n;
++#ifdef LUA_EMBEDDED
++  const void *rom = takeRomArray(S->Z, n, sizeof(int));
++  if (rom != NULL) {
++    f->lineinfo = cast(int*, cast(uintptr_t, rom));
++    f->lineinfo_in_rom = 1;
++  }
++  else {
++    f->lineinfo = luaM_newvector(S->L, n, int);
++    LoadVector(S, f->lineinfo, n);
++  }
++#else
++  f->lineinfo = luaM_newvector(S->L, n, int);
+   LoadVector(S, f->lineinfo, n);
++#endif
+   n = LoadInt(S);
+   f->locvars = luaM_newvector(S->L, n, LocVar);
+   f->sizelocvars = n;
+-- 
+2.34.1
+
