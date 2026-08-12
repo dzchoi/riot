@@ -131,9 +131,8 @@ static void _unschedule(thread_t *active_thread)
      */
     if (*((uintptr_t *)(uintptr_t)active_thread->stack_start) !=
         (uintptr_t)active_thread->stack_start) {
-        LOG_ERROR(
-            "scheduler(): stack overflow detected, pid=%" PRIkernel_pid "\n",
-            active_thread->pid);
+        LOG_ERROR("scheduler(): stack overflow detected, pid=%" PRIkernel_pid,
+                  active_thread->pid);
         core_panic(PANIC_STACK_OVERFLOW, "STACK OVERFLOW");
     }
 #endif

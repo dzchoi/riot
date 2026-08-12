@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <inttypes.h>
+#include <stdio.h>
 
 #include "cpu.h"
 #include "periph_cpu.h"
@@ -298,20 +299,25 @@ static int hex_width(uint32_t val)
 
 static void log_register(const char* regname, uint32_t regval)
 {
+    char text[20];
     const int n = hex_width(regval);
-    LOG_ERROR("%-5s %*s%0*X", regname, 8 - n, "", n, regval);
+    snprintf(text, sizeof(text), "%-5s %*s%0*X",
+             regname, 8 - n, "", n, (unsigned)regval);
+    LOG_ERROR("%s", text);
 }
 
 static void log_two_registers(
     const char* regname1, uint32_t regval1, const char* regname2, uint32_t regval2)
 {
+    char text[32];
     const int n1 = hex_width(regval1);
     const int n2 = hex_width(regval2);
 
-    // T32-style register view with compact hex formatting.
-    LOG_ERROR("%-5s %*s%0*X  %-5s %*s%0*X",
-        regname1, 8 - n1, "", n1, regval1,
-        regname2, 8 - n2, "", n2, regval2);
+    // T32-style register view with compact hexadecimal formatting.
+    snprintf(text, sizeof(text), "%-5s %*s%0*X  %-5s %*s%0*X",
+        regname1, 8 - n1, "", n1, (unsigned)regval1,
+        regname2, 8 - n2, "", n2, (unsigned)regval2);
+    LOG_ERROR("%s", text);
 }
 
 __attribute__((used))

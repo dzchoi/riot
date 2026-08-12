@@ -18,8 +18,10 @@
  * @}
  */
 
+#include <inttypes.h>
+#include <stdio.h>
+
 #include "irq.h"                // for irq_disable(), irq_restore()
-#include "log.h"
 #include "thread.h"
 
 #ifdef MODULE_SCHEDSTATISTICS
@@ -60,7 +62,7 @@ void ps(void)
     // Disable context switching while taking a snapshot of thread states.
     unsigned state = irq_disable();
 
-    LOG_DEBUG("pid  "                       // "%.3s  ""
+    printf("pid  "                       // "%.3s  "
 #ifdef CONFIG_THREAD_NAMES
        " name              "                // "%c%.16s  "
 #endif
@@ -71,13 +73,14 @@ void ps(void)
 #ifdef MODULE_SCHEDSTATISTICS
         "  | runtime  | switches  | runtime_usec "
 #endif
+        "\n"
     );
 
 #if defined(DEVELHELP) && ISR_STACKSIZE
-    LOG_DEBUG("  -  "
+    printf("  -  "
        " isr_stack         "
         "-           -  "
-        "-         -         %d/%d",
+        "-         -         %d/%d\n",
         thread_isr_stack_usage(), ISR_STACKSIZE);
 #endif
 
@@ -114,7 +117,7 @@ void ps(void)
             unsigned runtime_minor = ((runtime_us % rt_sum) * 1000) / rt_sum;
             unsigned switches = sched_pidlist[i].schedules;
 #endif
-            LOG_DEBUG("%3d  "
+            printf("%3d  "
 #ifdef CONFIG_THREAD_NAMES
                 "%c%-16s  "
 #endif
@@ -125,6 +128,7 @@ void ps(void)
 #ifdef MODULE_SCHEDSTATISTICS
                 "  | %2d.%03d%% |  %8u  | %10"PRIu32" "
 #endif
+                "\n"
                 , thread_getpid_of(thread)
 #ifdef CONFIG_THREAD_NAMES
                 , is_active, thread_get_name(thread)
@@ -146,8 +150,8 @@ void ps(void)
     puts("\nHeap usage:");
     tlsf_size_container_t sizes = { .free = 0, .used = 0 };
     tlsf_walk_pool(tlsf_get_pool(_tlsf_get_global_control()), tlsf_size_walker, &sizes);
-    LOG_DEBUG("\tTotal free size: %u", sizes.free);
-    LOG_DEBUG("\tTotal used size: %u", sizes.used);
+    printf("\tTotal free size: %u\n", sizes.free);
+    printf("\tTotal used size: %u\n", sizes.used);
 #   endif
 #endif
 
